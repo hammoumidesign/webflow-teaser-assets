@@ -1,237 +1,289 @@
-(() => {
-  if (window.__HammoumiTeaser3DLoaded) return;
-  window.__HammoumiTeaser3DLoaded = true;
+/* three-teaser.js
+   Hammoumi teaser — stable Webflow embed version (NO ESM imports)
+*/
 
+(() => {
+  // ====== CONFIG (your asset URLs) ======
   const GLB_URL =
     "https://raw.githubusercontent.com/hammoumidesign/webflow-teaser-assets/main/Hammoumi_Logo3D.glb";
   const HDR_URL =
     "https://raw.githubusercontent.com/hammoumidesign/webflow-teaser-assets/main/studio_small_09_4k.hdr";
 
-  function ensureStyle() {
-    if (document.getElementById("three-teaser-style")) return;
-    const style = document.createElement("style");
-    style.id = "three-teaser-style";
-    style.textContent = `
-      html, body { margin:0; padding:0; background:#000; overflow:hidden; }
-      #three-mount{
-        position: fixed !important;
-        inset: 0 !important;
-        width: 100vw !important;
-        height: 100vh !important;
-        z-index: 1 !important;
-        pointer-events: none !important;
-      }
-      #three-mount canvas { display:block; width:100% !important; height:100% !important; }
-    `;
-    document.head.appendChild(style);
+  // ====== Helpers ======
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const existing = [...document.scripts].find((s) => s.src === src);
+      if (existing) return resolve();
+      const s = document.createElement("script");
+      s.src = src;
+      s.async = true;
+      s.onload = resolve;
+      s.onerror = () => reject(new Error("Failed to load: " + src));
+      document.head.appendChild(s);
+    });
   }
 
- function ensureMount() {
-  let mount = document.getElementById("three-mount");
+  function ensureMount() {
+    let mount = document.getElementById("three-mount");
 
-  if (!mount) {
-    mount = document.createElement("div");
-    mount.id = "three-mount";
-  }
-
-  // Always attach to body so Webflow wrappers can't clip/remove it
-  if (mount.parentElement !== document.body) {
-    document.body.appendChild(mount);
-  }
-
-  mount.style.position = "fixed";
-  mount.style.left = "0";
-  mount.style.top = "0";
-  mount.style.width = "100vw";
-  mount.style.height = "100vh";
-  mount.style.zIndex = "1";
-  mount.style.pointerEvents = "none";
-
-  return mount;
-}
-
-
-  async function main() {
-    ensureStyle();
-    const mount = ensureMount();
-  console.log("[Three] mount:", mount);
-  console.log("[Three] mount in DOM:", !!document.getElementById("three-mount"));
-
-
-        // --- Load Three.js + loaders (classic scripts, no ESM import issues) ---
-    function loadScript(src) {
-      return new Promise((resolve, reject) => {
-        const existing = [...document.scripts].find((s) => s.src === src);
-        if (existing) return resolve();
-        const s = document.createElement("script");
-        s.src = src;
-        s.onload = resolve;
-        s.onerror = reject;
-        document.head.appendChild(s);
-      });
+    if (!mount) {
+      mount = document.createElement("div");
+      mount.id = "three-mount";
     }
 
+    // Force it to be a direct body child so Webflow wrappers can’t clip it
+    if (mount.parentElement !== document.body) {
+      document.body.appendChild(mount);
+    }
+
+    // Fullscreen canvas behind UI
+    mount.style.position = "fixed";
+    mount.style.left = "0";
+    mount.style.top = "0";
+    mount.style.width = "100vw";
+    mount.style.height = "100vh";
+    mount.style.zIndex = "1";
+    mount.style.pointerEvents = "none";
+    mount.style.overflow = "hidden";
+
+    return mount;
+  }
+
+  function ensureBaseStyle() {
+    // Keep background black + remove margins
+    const styleId = "three-teaser-style";
+    if (document.getElementById(styleId)) return;
+
+    const st = document.createElement("style");
+    st.id = styleId;
+    st.textContent = `
+      html, body { margin: 0; padding: 0; background: #000; }
+      #three-mount canvas { display: block; width: 100%; height: 100%; }
+    `;
+    document.head.appendChild(st);
+  }
+
+  // ====== Main ======
+  async function run() {
+    ensureBaseStyle();
+    const mount = ensureMount();
+
+    // Load Three + loaders (classic, stable)
     await loadScript("https://unpkg.com/three@0.158.0/build/three.min.js");
-    await loadScript("https://unpkg.com/three@0.158.0/examples/js/loaders/GLTFLoader.js");
-    await loadScript("https://unpkg.com/three@0.158.0/examples/js/loaders/RGBELoader.js");
+    await loadScript(
+      "https://unpkg.com/three@0.158.0/examples/js/loaders/GLTFLoader.js"
+    );
+    await loadScript(
+      "https://unpkg.com/three@0.158.0/examples/js/loaders/RGBELoader.js"
+    );
 
     const THREE = window.THREE;
-    const GLTFLoader = THREE.GLTFLoader;
-    const RGBELoader = THREE.RGBELoader;
+    if (!THREE) throw new Error("THREE is not available on window");
+    if (!THREE.GLTFLoader) throw new Error("GLTFLoader not attached to THREE");
+    if (!THREE.RGBELoader) throw new Error("RGBELoader not attached to THREE");
 
-
+    // Scene
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 500);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    // Camera
+    const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 800);
+
+    // Renderer
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: false,
+      powerPreference: "high-performance",
+    });
     renderer.setClearColor(0x000000, 1);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+
+    // For three.min.js (0.158): use outputEncoding
+    renderer.outputEncoding = THREE.sRGBEncoding;
+
+    // Tone mapping
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.1;
-    renderer.outputColorSpace = THREE.sRGBEncoding;
 
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     mount.appendChild(renderer.domElement);
 
+    // Resize
     function resize() {
       const w = Math.max(1, mount.clientWidth);
       const h = Math.max(1, mount.clientHeight);
+      renderer.setSize(w, h, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      renderer.setSize(w, h, false);
     }
+    resize();
+    window.addEventListener("resize", resize);
 
+    // Environment (HDRI)
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    pmrem.compileEquirectangularShader();
+
+    const rgbe = new THREE.RGBELoader();
+    rgbe.setDataType(THREE.UnsignedByteType);
+
+    rgbe.load(
+      HDR_URL,
+      (hdrTex) => {
+        const envMap = pmrem.fromEquirectangular(hdrTex).texture;
+        scene.environment = envMap;
+        scene.background = null;
+        hdrTex.dispose();
+        pmrem.dispose();
+      },
+      undefined,
+      (err) => console.error("[Three] HDR load error:", err)
+    );
+
+    // Lights (small help, chrome relies mostly on env)
+    const key = new THREE.DirectionalLight(0xffffff, 0.25);
+    key.position.set(2, 3, 4);
+    scene.add(key);
+
+    const fill = new THREE.AmbientLight(0xffffff, 0.15);
+    scene.add(fill);
+
+    // Rig for rotation (so we tilt the whole logo)
     const rig = new THREE.Group();
     scene.add(rig);
 
-    // ---- Base orientation (we'll flip after we confirm facing) ----
-    const BASE_X = Math.PI / 2;
-    const BASE_Y = Math.PI;
-    const BASE_Z = 0;
-    rig.rotation.set(BASE_X, BASE_Y, BASE_Z);
-
-    const light = new THREE.DirectionalLight(0xffffff, 1.2);
-    light.position.set(5, 5, 5);
-    scene.add(light);
-
-    new RGBELoader().load(HDR_URL, (tex) => {
-      tex.mapping = THREE.EquirectangularReflectionMapping;
-      scene.environment = tex;
-    });
-
+    // Load model
     let logo = null;
+    const gltfLoader = new THREE.GLTFLoader();
 
-    function fitCameraToObject(object3D, fitOffset = 1.18) {
-      const box = new THREE.Box3().setFromObject(object3D);
+    function fitCameraToObject(obj3d, fitOffset = 1.25) {
+      const box = new THREE.Box3().setFromObject(obj3d);
       const size = box.getSize(new THREE.Vector3());
       const center = box.getCenter(new THREE.Vector3());
-      object3D.position.sub(center);
 
       const maxSize = Math.max(size.x, size.y, size.z);
-      const fov = THREE.MathUtils.degToRad(camera.fov);
-      const aspect = camera.aspect || 1;
+      const fov = (camera.fov * Math.PI) / 180;
+      let cameraZ = Math.abs((maxSize / 2) / Math.tan(fov / 2));
+      cameraZ *= fitOffset;
 
-      const fitHeightDistance = (maxSize / 2) / Math.tan(fov / 2);
-      const fitWidthDistance = fitHeightDistance / aspect;
-      const distance = fitOffset * Math.max(fitHeightDistance, fitWidthDistance);
-
-      camera.position.set(0, 0, distance);
-      camera.near = distance / 100;
-      camera.far = distance * 100;
+      camera.position.set(center.x, center.y, cameraZ);
+      camera.lookAt(center);
       camera.updateProjectionMatrix();
-      camera.lookAt(0, 0, 0);
     }
 
-    new GLTFLoader().load(
+    gltfLoader.load(
       GLB_URL,
       (gltf) => {
         logo = gltf.scene;
 
-        logo.traverse((child) => {
-          if (child.isMesh && child.material) {
-            child.material.metalness = 1;
-            child.material.roughness = 0.08;
-            child.material.envMapIntensity = 1.2;
-            child.frustumCulled = false;
-          }
-        });
-
+        // Put logo in rig
         rig.add(logo);
-        resize();
-        fitCameraToObject(logo, 1.18);
+
+        // ✅ Rotate 180° on X axis (your request)
+        // If it looks wrong, we can switch to Y or Z, but start with X.
+        logo.rotation.x += Math.PI;
+
+        // Optional: make it bigger (+30%)
+        logo.scale.setScalar(1.3);
+
+        // Center it
+        const box = new THREE.Box3().setFromObject(logo);
+        const center = box.getCenter(new THREE.Vector3());
+        logo.position.sub(center);
+
+        // Camera fit
+        fitCameraToObject(rig, 1.2);
       },
       undefined,
-      (err) => console.error("GLB load error:", err)
+      (err) => console.error("[Three] GLB load error:", err)
     );
 
-    window.addEventListener("resize", () => {
-      resize();
-      if (logo) fitCameraToObject(logo, 1.18);
+    // Interaction (cursor follow + idle wiggle)
+    let targetX = 0;
+    let targetY = 0;
+    let lastMove = performance.now();
+    const idleAfterMs = 800;
+
+    function clamp(v, a, b) {
+      return Math.max(a, Math.min(b, v));
+    }
+
+    window.addEventListener("mousemove", (e) => {
+      const nx = (e.clientX / window.innerWidth) * 2 - 1; // -1..1
+      const ny = (e.clientY / window.innerHeight) * 2 - 1; // -1..1
+      targetX = nx;
+      targetY = ny;
+      lastMove = performance.now();
     });
 
-    let mx = 0,
-      my = 0;
-    let lastMove = performance.now();
+    // Mobile: use device orientation if available, otherwise idle wiggle
+    if (window.DeviceOrientationEvent) {
+      window.addEventListener(
+        "deviceorientation",
+        (e) => {
+          if (e.beta == null || e.gamma == null) return;
+          // gamma: left/right, beta: front/back
+          const nx = clamp(e.gamma / 30, -1, 1);
+          const ny = clamp(e.beta / 30, -1, 1);
+          targetX = nx;
+          targetY = ny;
+          lastMove = performance.now();
+        },
+        { passive: true }
+      );
+    }
 
-    window.addEventListener(
-      "pointermove",
-      (e) => {
-        const modal = document.querySelector(".modal_wrap");
-        if (modal && getComputedStyle(modal).display !== "none") return;
+    // Base rotation offsets (tuned)
+    const BASE_X = 0;
+    const BASE_Y = 0;
+    const BASE_Z = 0;
 
-        mx = (e.clientX / window.innerWidth - 0.5) * 2;
-        my = (e.clientY / window.innerHeight - 0.5) * 2;
-        lastMove = performance.now();
-      },
-      { passive: true }
-    );
+    // Tilt strengths (more vertical tilt like you wanted)
+    const STR_X = 0.55; // vertical tilt strength (UP/DOWN)
+    const STR_Y = 0.35; // horizontal tilt strength (LEFT/RIGHT)
 
-    const followStrengthY = 0.55;
-    const followStrengthX = 0.95;
+    // Smoothness
+    const LERP = 0.07;
 
-    let idleMode = false;
-    let idleStart = 0;
-    let holdOffsetX = 0;
-    let holdOffsetY = 0;
+    // Keep last “hold” so idle continues from last cursor position
+    let holdX = 0;
+    let holdY = 0;
 
-    function animate() {
+    function animate(t) {
       requestAnimationFrame(animate);
 
       const now = performance.now();
-      const isIdle = now - lastMove > 900;
+      const idle = now - lastMove > idleAfterMs;
 
-      if (isIdle && !idleMode) {
-        idleMode = true;
-        idleStart = now;
-        holdOffsetX = rig.rotation.x - BASE_X;
-        holdOffsetY = rig.rotation.y - BASE_Y;
-      }
-      if (!isIdle && idleMode) idleMode = false;
-
-      const targetOffsetX = THREE.MathUtils.clamp(-my * followStrengthX, -1.05, 1.05);
-      const targetOffsetY = mx * followStrengthY;
-
-      const currentOffsetX = rig.rotation.x - BASE_X;
-      const currentOffsetY = rig.rotation.y - BASE_Y;
-
-      let desiredOffsetX = targetOffsetX;
-      let desiredOffsetY = targetOffsetY;
-
-      if (idleMode) {
-        const t = (now - idleStart) * 0.001;
-        desiredOffsetY = holdOffsetY + Math.sin(t * 0.65) * 0.18;
-        desiredOffsetX = holdOffsetX + Math.sin(t * 0.5) * 0.06;
+      if (!idle) {
+        // Update hold point while user moves
+        holdX = targetX;
+        holdY = targetY;
       }
 
-      rig.rotation.x = BASE_X + (currentOffsetX + (desiredOffsetX - currentOffsetX) * 0.06);
-      rig.rotation.y = BASE_Y + (currentOffsetY + (desiredOffsetY - currentOffsetY) * 0.06);
-      rig.rotation.z = BASE_Z + Math.sin(now * 0.00032) * 0.02;
+      // Desired offsets
+      let dx = holdX;
+      let dy = holdY;
+
+      if (idle) {
+        // Slow wiggle continuing from last position (no jump)
+        const tt = now * 0.001;
+        dx = holdX + Math.sin(tt * 0.7) * 0.12;
+        dy = holdY + Math.sin(tt * 0.55) * 0.18;
+      }
+
+      // Apply to rig rotation
+      const desiredRotX = BASE_X + (-dy * STR_X);
+      const desiredRotY = BASE_Y + (dx * STR_Y);
+      const desiredRotZ = BASE_Z + Math.sin(now * 0.00025) * 0.02;
+
+      rig.rotation.x += (desiredRotX - rig.rotation.x) * LERP;
+      rig.rotation.y += (desiredRotY - rig.rotation.y) * LERP;
+      rig.rotation.z += (desiredRotZ - rig.rotation.z) * (LERP * 0.6);
 
       renderer.render(scene, camera);
     }
 
-    resize();
-    animate();
+    requestAnimationFrame(animate);
   }
 
-  main().catch((e) => console.error("Three teaser init error:", e));
+  // Run safely
+  run().catch((err) => console.error("[Three] crashed:", err));
 })();
