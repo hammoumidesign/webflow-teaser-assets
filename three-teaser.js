@@ -19,7 +19,7 @@
   // "https://raw.githubusercontent.com/hammoumidesign/webflow-teaser-assets/main/logo.glb"
   // "https://raw.githubusercontent.com/hammoumidesign/webflow-teaser-assets/main/hammoumi.glb"
   const DEFAULT_MODEL_URL =
-    "https://raw.githubusercontent.com/hammoumidesign/webflow-teaser-assets/main/logo.glb";
+    "https://raw.githubusercontent.com/hammoumidesign/webflow-teaser-assets/main/Hammoumi_Logo3D.glb";
 
   // Make logo ~30% bigger:
   const LOGO_SCALE = 1.3;
