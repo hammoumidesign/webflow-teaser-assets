@@ -3,6 +3,9 @@
 */
 
 (() => {
+
+   console.log("[ThreeTeaser] script started");
+
   // ====== CONFIG (your asset URLs) ======
   const GLB_URL =
     "https://raw.githubusercontent.com/hammoumidesign/webflow-teaser-assets/main/Hammoumi_Logo3D.glb";
@@ -67,9 +70,12 @@
   async function run() {
     ensureBaseStyle();
     const mount = ensureMount();
+     console.log("[ThreeTeaser] mount:", mount);
 
     // Load Three + loaders (classic, stable)
     await loadScript("https://unpkg.com/three@0.158.0/build/three.min.js");
+     console.log("[ThreeTeaser] three.min.js loaded");
+
     await loadScript(
       "https://unpkg.com/three@0.158.0/examples/js/loaders/GLTFLoader.js"
     );
@@ -105,6 +111,8 @@
 
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     mount.appendChild(renderer.domElement);
+     console.log("[ThreeTeaser] canvas appended:", mount.querySelector("canvas"));
+
 
     // Resize
     function resize() {
@@ -285,5 +293,8 @@
   }
 
   // Run safely
-  run().catch((err) => console.error("[Three] crashed:", err));
-})();
+  run().catch((err) => {
+  console.error("[ThreeTeaser] crashed:", err);
+  const m = document.getElementById("three-mount");
+  if (m) m.innerHTML = "<div style='position:fixed;left:12px;bottom:12px;color:#fff;font:12px/1.4 monospace;z-index:99999'>ThreeTeaser crashed — check console.</div>";
+});
