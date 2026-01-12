@@ -27,14 +27,29 @@
   }
 
   function ensureMount() {
-    let mount = document.getElementById("three-mount");
-    if (!mount) {
-      mount = document.createElement("div");
-      mount.id = "three-mount";
-      document.body.appendChild(mount);
-    }
-    if (mount.parentElement !== document.body) document.body.appendChild(mount);
-    return mount;
+      let mount = document.getElementById("three-mount");
+
+  if (!mount) {
+    mount = document.createElement("div");
+    mount.id = "three-mount";
+  }
+
+  // Always force it to be a direct child of <body>
+  if (mount.parentElement !== document.body) {
+    document.body.appendChild(mount);
+  }
+
+  // Ensure it actually has size
+  mount.style.position = "fixed";
+  mount.style.left = "0";
+  mount.style.top = "0";
+  mount.style.width = "100vw";
+  mount.style.height = "100vh";
+  mount.style.zIndex = "1";
+  mount.style.pointerEvents = "none";
+
+  return mount;
+
   }
 
   async function main() {
