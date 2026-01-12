@@ -41,15 +41,27 @@
     ensureStyle();
     const mount = ensureMount();
 
-    const THREE = await import(
-      "https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js"
-    );
-    const { GLTFLoader } = await import(
-      "https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/loaders/GLTFLoader.js"
-    );
-    const { RGBELoader } = await import(
-      "https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/loaders/RGBELoader.js"
-    );
+        // --- Load Three.js + loaders (classic scripts, no ESM import issues) ---
+    function loadScript(src) {
+      return new Promise((resolve, reject) => {
+        const existing = [...document.scripts].find((s) => s.src === src);
+        if (existing) return resolve();
+        const s = document.createElement("script");
+        s.src = src;
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
+
+    await loadScript("https://unpkg.com/three@0.158.0/build/three.min.js");
+    await loadScript("https://unpkg.com/three@0.158.0/examples/js/loaders/GLTFLoader.js");
+    await loadScript("https://unpkg.com/three@0.158.0/examples/js/loaders/RGBELoader.js");
+
+    const THREE = window.THREE;
+    const GLTFLoader = THREE.GLTFLoader;
+    const RGBELoader = THREE.RGBELoader;
+
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 500);
@@ -59,7 +71,8 @@
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.1;
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.outputColorSpace = THREE.sRGBEncoding;
+
     mount.appendChild(renderer.domElement);
 
     function resize() {
