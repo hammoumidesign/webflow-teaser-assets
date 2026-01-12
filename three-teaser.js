@@ -26,20 +26,19 @@
     document.head.appendChild(style);
   }
 
-  function ensureMount() {
-      let mount = document.getElementById("three-mount");
+ function ensureMount() {
+  let mount = document.getElementById("three-mount");
 
   if (!mount) {
     mount = document.createElement("div");
     mount.id = "three-mount";
   }
 
-  // Always force it to be a direct child of <body>
+  // Always attach to body so Webflow wrappers can't clip/remove it
   if (mount.parentElement !== document.body) {
     document.body.appendChild(mount);
   }
 
-  // Ensure it actually has size
   mount.style.position = "fixed";
   mount.style.left = "0";
   mount.style.top = "0";
@@ -49,12 +48,15 @@
   mount.style.pointerEvents = "none";
 
   return mount;
+}
 
-  }
 
   async function main() {
     ensureStyle();
     const mount = ensureMount();
+  console.log("[Three] mount:", mount);
+  console.log("[Three] mount in DOM:", !!document.getElementById("three-mount"));
+
 
         // --- Load Three.js + loaders (classic scripts, no ESM import issues) ---
     function loadScript(src) {
